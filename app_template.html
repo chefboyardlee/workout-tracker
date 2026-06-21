@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="V-Taper">
+<meta name="theme-color" content="#0f131c">
+<title>V-Taper Program</title>
+<style>
+  :root{
+    --bg:#0f131c; --card:#1a2030; --card2:#222a3d; --line:#2c3650;
+    --txt:#e8edf6; --mut:#8a96ad; --accent:#ff8a3d; --accent2:#ffb070;
+    --good:#39d98a; --goodbg:#16352a; --danger:#ff5d6c;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding-bottom:env(safe-area-inset-bottom); -webkit-text-size-adjust:100%;}
+  header{position:sticky; top:0; z-index:30;
+    background:linear-gradient(180deg,#131826 0%, #131826ee 80%, #13182600 100%);
+    padding:calc(env(safe-area-inset-top) + 10px) 14px 6px; backdrop-filter:blur(8px);}
+  .title{display:flex; align-items:center; justify-content:space-between;}
+  .title h1{font-size:18px; margin:0; letter-spacing:.3px;}
+  .title h1 span{color:var(--accent);}
+  .hbtns{display:flex; align-items:center; gap:8px;}
+  .stepchip{background:var(--card2); border:1px solid var(--line); color:var(--accent2);
+    padding:6px 11px; border-radius:20px; font-weight:700; font-size:12px;}
+  .menubtn{width:36px; height:36px; border-radius:11px; background:var(--card2); border:1px solid var(--line);
+    color:var(--txt); font-size:18px; display:flex; align-items:center; justify-content:center;}
+  .tabs{display:flex; gap:6px; overflow-x:auto; margin-top:10px; padding-bottom:4px; scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{flex:0 0 auto; background:var(--card); border:1px solid var(--line); color:var(--mut);
+    padding:8px 13px; border-radius:12px; font-size:13px; font-weight:600;
+    display:flex; flex-direction:column; align-items:center; gap:2px; min-width:62px;}
+  .tab b{color:var(--txt); font-size:13px;}
+  .tab small{font-size:10px; opacity:.8; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .tab.active{background:var(--accent); border-color:var(--accent); color:#2a1500;}
+  .tab.active b,.tab.active small{color:#2a1500;}
+  .progress{margin:8px 0 2px;}
+  .bar{height:6px; background:var(--card2); border-radius:6px; overflow:hidden;}
+  .bar i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--good)); transition:width .25s;}
+  .progtxt{display:flex; justify-content:space-between; font-size:11px; color:var(--mut); margin-top:5px;}
+  .dayhead{padding:4px 14px 0;}
+  .dayhead .focus{color:var(--mut); font-size:12px; line-height:1.4; margin-top:6px;}
+  main{padding:8px 12px 40px;}
+  .ex{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; margin-bottom:12px;}
+  .ex.done{border-color:var(--good);}
+  .extop{display:flex; gap:12px;}
+  .icon{flex:0 0 70px; width:70px; height:70px; border-radius:13px; overflow:hidden; background:#fff;}
+  .icon img{width:100%; height:100%; object-fit:cover; display:block;}
+  .exinfo{flex:1; min-width:0;}
+  .exname{font-size:15px; font-weight:700; line-height:1.25;}
+  .exrep{color:var(--accent2); font-size:13px; font-weight:600; margin-top:3px;}
+  .exnote{color:var(--mut); font-size:11px; margin-top:3px; line-height:1.35;}
+  .weight{display:flex; align-items:center; gap:10px; margin-top:12px;}
+  .wbtn{width:44px; height:44px; border-radius:12px; border:1px solid var(--line); background:var(--card2);
+    color:var(--accent2); font-size:23px; font-weight:700; display:flex; align-items:center; justify-content:center; user-select:none;}
+  .wbtn:active{background:var(--accent); color:#2a1500;}
+  .wval{flex:1; text-align:center;}
+  .wval b{font-size:26px; font-weight:800; letter-spacing:.5px;}
+  .wval small{display:block; font-size:10px; color:var(--mut); margin-top:-2px;}
+  .sets{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .setlabel{font-size:11px; color:var(--mut); width:100%; margin-bottom:-2px;}
+  .set{width:46px; height:46px; border-radius:12px; border:2px solid var(--line); background:var(--card2);
+    color:var(--mut); font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center; position:relative;}
+  .set.on{background:var(--goodbg); border-color:var(--good); color:var(--good);}
+  .set.on::after{content:"✓"; position:absolute; top:-7px; right:-5px; background:var(--good); color:#06210f;
+    width:18px; height:18px; border-radius:50%; font-size:11px; display:flex; align-items:center; justify-content:center;}
+  .actions{display:flex; gap:10px; margin-top:6px;}
+  .act{flex:1; text-align:center; padding:12px; border-radius:13px; font-weight:700; font-size:13px; border:1px solid var(--line); background:var(--card);}
+  .act.clear{color:var(--accent2);}
+  .act.tip{color:var(--mut);}
+  .install{margin:0 12px 14px; background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:13px; font-size:12px; color:var(--mut); line-height:1.5;}
+  .install b{color:var(--txt);}
+  .install .x{float:right; color:var(--mut); font-size:16px; padding:0 4px;}
+  .tipbox{margin:2px 12px 16px; background:#171d2b; border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:11px 13px; font-size:12px; color:var(--mut); line-height:1.5; display:none;}
+  .tipbox.show{display:block;}
+  /* overlays */
+  .overlay{position:fixed; inset:0; z-index:60; background:#0b0f16; display:none; flex-direction:column; overflow-y:auto;
+    padding-top:env(safe-area-inset-top);}
+  .overlay.show{display:flex;}
+  .ovbar{position:sticky; top:0; background:#11151f; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:14px 16px; z-index:5;}
+  .ovbar h2{font-size:16px; margin:0;}
+  .ovbar button{background:var(--accent); color:#2a1500; border:none; padding:9px 16px; border-radius:11px; font-weight:700; font-size:14px;}
+  .ovbody{padding:14px 14px 60px;}
+  .sheet{position:fixed; inset:0; z-index:70; background:#000a; display:none; align-items:flex-end;}
+  .sheet.show{display:flex;}
+  .sheetinner{width:100%; background:var(--card); border-radius:18px 18px 0 0; padding:10px 14px calc(env(safe-area-inset-bottom) + 18px);}
+  .sheetinner h3{margin:6px 4px 12px; font-size:14px; color:var(--mut);}
+  .menuitem{display:flex; align-items:center; gap:12px; padding:15px 12px; border-radius:13px; font-size:15px; font-weight:600; background:var(--card2); margin-bottom:8px;}
+  .menuitem.danger{color:var(--danger);}
+  .menuitem .em{font-size:19px; width:24px; text-align:center;}
+  .menuitem small{display:block; font-weight:400; font-size:11px; color:var(--mut); margin-top:2px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block; font-size:12px; color:var(--mut); margin-bottom:5px; font-weight:600;}
+  .field input,.field textarea{width:100%; background:var(--card2); border:1px solid var(--line); border-radius:11px; color:var(--txt); padding:11px; font-size:15px; font-family:inherit;}
+  .field textarea{min-height:60px; resize:vertical;}
+  .row2{display:flex; gap:10px;}
+  .row2 .field{flex:1;}
+  .editex{display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:13px; padding:9px; margin-bottom:9px;}
+  .editex img{width:46px; height:46px; border-radius:9px; object-fit:cover; background:#fff; flex:0 0 46px;}
+  .editex .nm{flex:1; min-width:0;}
+  .editex .nm b{font-size:14px; display:block;}
+  .editex .nm small{font-size:11px; color:var(--accent2);}
+  .miniBtn{width:34px; height:34px; border-radius:9px; background:var(--card2); border:1px solid var(--line); color:var(--txt); font-size:15px; display:flex; align-items:center; justify-content:center; flex:0 0 34px;}
+  .miniBtn.del{color:var(--danger);}
+  .addbtn{display:block; width:100%; text-align:center; padding:14px; border:1px dashed var(--accent); border-radius:13px; color:var(--accent2); font-weight:700; background:transparent; font-size:14px; margin-top:6px;}
+  .dayedit{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:14px;}
+  .dchip{background:var(--card2); border:1px solid var(--line); color:var(--mut); padding:8px 12px; border-radius:11px; font-size:13px; font-weight:600;}
+  .dchip.active{background:var(--accent); color:#2a1500; border-color:var(--accent);}
+  .imggrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; max-height:230px; overflow-y:auto; padding:4px; background:var(--card2); border-radius:12px; margin-top:6px;}
+  .imgopt{position:relative; border-radius:9px; overflow:hidden; border:2px solid transparent; background:#fff;}
+  .imgopt img{width:100%; aspect-ratio:1; object-fit:cover; display:block;}
+  .imgopt.sel{border-color:var(--good);}
+  .hint{font-size:11px; color:var(--mut); line-height:1.5; margin-top:4px;}
+  .uploadbtn{display:inline-block; margin-top:8px; background:var(--card2); border:1px solid var(--line); color:var(--accent2); padding:10px 14px; border-radius:11px; font-size:13px; font-weight:600;}
+  input[type=file]{display:none;}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <h1>V<span>·</span>TAPER</h1>
+    <div class="hbtns">
+      <span class="stepchip" id="stepchip" onclick="cycleStep()">2.5 kg</span>
+      <div class="menubtn" onclick="openSheet()">☰</div>
+    </div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="progress">
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="progtxt"><span id="progLabel">0 / 0 sets</span><span id="progPct">0%</span></div>
+  </div>
+</header>
+
+<div class="dayhead"><div class="focus" id="dayfocus"></div></div>
+
+<div class="install" id="install">
+  <span class="x" onclick="dismissInstall()">✕</span>
+  <b>📲 Add to your iPhone Home Screen</b><br>
+  In Safari tap <b>Share</b> → <b>Add to Home Screen</b>. Opens full-screen like an app, works offline, and saves your weights &amp; checkmarks automatically.
+</div>
+
+<div class="tipbox" id="tipbox"></div>
+<main id="main"></main>
+
+<!-- MENU SHEET -->
+<div class="sheet" id="sheet" onclick="if(event.target===this)closeSheet()">
+  <div class="sheetinner">
+    <h3>MENU</h3>
+    <div class="menuitem" onclick="closeSheet();openEditor()"><span class="em">✏️</span><div>Edit workouts<small>Add / change exercises &amp; days</small></div></div>
+    <div class="menuitem" onclick="closeSheet();backup()"><span class="em">💾</span><div>Backup my data<small>Save program + progress to a file</small></div></div>
+    <div class="menuitem" onclick="document.getElementById('restoreFile').click()"><span class="em">📂</span><div>Restore from backup<small>Load a saved backup file</small></div></div>
+    <div class="menuitem danger" onclick="closeSheet();resetDefault()"><span class="em">↩︎</span><div>Reset to default program<small>Restores the original 5-day plan</small></div></div>
+    <div class="menuitem" onclick="closeSheet()" style="justify-content:center; color:var(--mut)">Close</div>
+  </div>
+</div>
+<input type="file" id="restoreFile" accept="application/json,.json" onchange="restore(event)">
+
+<!-- EDITOR OVERLAY -->
+<div class="overlay" id="editor">
+  <div class="ovbar"><h2>Edit Program</h2><button onclick="closeEditor()">Done</button></div>
+  <div class="ovbody">
+    <div class="dayedit" id="dayChips"></div>
+    <div class="row2">
+      <div class="field"><label>Day name</label><input id="edName" oninput="updDay()"></div>
+      <div class="field"><label>Subtitle</label><input id="edSub" oninput="updDay()"></div>
+    </div>
+    <div class="field"><label>Focus / description</label><textarea id="edFocus" oninput="updDay()"></textarea></div>
+    <div class="field"><label>Tip</label><textarea id="edTip" oninput="updDay()"></textarea></div>
+    <div style="display:flex; gap:8px; margin:4px 0 14px;">
+      <button class="act" style="color:var(--accent2)" onclick="addDay()">＋ Add day</button>
+      <button class="act danger" style="color:var(--danger)" onclick="delDay()">🗑 Delete this day</button>
+    </div>
+    <label style="display:block; font-size:12px; color:var(--mut); margin-bottom:8px; font-weight:600;">EXERCISES</label>
+    <div id="editExList"></div>
+    <button class="addbtn" onclick="openExForm(-1)">＋ Add exercise</button>
+  </div>
+</div>
+
+<!-- EXERCISE FORM OVERLAY -->
+<div class="overlay" id="exForm">
+  <div class="ovbar"><h2 id="exFormTitle">Exercise</h2><button onclick="saveExForm()">Save</button></div>
+  <div class="ovbody">
+    <div class="field"><label>Exercise name</label><input id="fName" placeholder="e.g. Barbell overhead press"></div>
+    <div class="row2">
+      <div class="field"><label>Sets &amp; reps (text)</label><input id="fReps" placeholder="e.g. 4 × 8–10"></div>
+      <div class="field" style="flex:0 0 90px;"><label># of sets</label><input id="fSets" type="number" min="1" max="10" value="3"></div>
+    </div>
+    <div class="field"><label>Note (optional)</label><input id="fNote" placeholder="e.g. Each side"></div>
+    <div class="field">
+      <label>Photo — tap to choose</label>
+      <div class="imggrid" id="imgGrid"></div>
+      <label class="uploadbtn">📷 Use my own photo<input type="file" accept="image/*" onchange="uploadImg(event)"></label>
+      <div class="hint">Pick a demonstration photo, or upload your own from your phone.</div>
+    </div>
+    <button class="act danger" style="color:var(--danger); width:100%; margin-top:6px;" id="delExBtn" onclick="deleteCurrentEx()">🗑 Delete this exercise</button>
+  </div>
+</div>
+
+<script>
+/*IMAGES_DATA*/
+
+const PLACEHOLDER='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="16" fill="#1f2738"/><g fill="none" stroke="#ff8a3d" stroke-width="6" stroke-linecap="round"><path d="M30 60h60M40 48v24M80 48v24M30 54v12M90 54v12"/></g></svg>');
+function resolveImg(v){ if(!v) return PLACEHOLDER; if(v.indexOf('data:')===0||v.indexOf('http')===0) return v; return IMAGES[v]||PLACEHOLDER; }
+const STEPS=[0.5,1,2.5,5,10];
+
+/* ---------- DEFAULT PROGRAM (seed only; your live copy lives in storage) ---------- */
+const SEED=[
+ {name:"Shoulders",sub:"Heavy",focus:"Width & capping — the foundation of the V-taper. Heavy pressing + high lateral raise volume.",
+  tip:"Lateral raises are the #1 V-taper builder. Keep form strict at a lighter weight — don't cheat the load.",
+  ex:[
+   {t:"Barbell overhead press",r:"4 × 5–6",s:4,img:"ohp"},
+   {t:"Dumbbell Arnold press",r:"3 × 8–10",s:3,img:"shoulderpress"},
+   {t:"Cable lateral raise",r:"4 × 12–15",s:4,img:"latraise",note:"Each side"},
+   {t:"Dumbbell lateral raise",r:"3 × 15 → drop → 15",s:3,img:"latraise",note:"Drop set: 15 reps, drop ~30%, 15 more"},
+   {t:"Rear delt fly (machine/cable)",r:"3 × 15–20",s:3,img:"reardelt"},
+   {t:"Face pulls",r:"3 × 15–20",s:3,img:"facepull"}]},
+ {name:"Back",sub:"Width & Thickness",focus:"Wide lats = narrower-looking waist. Pull heavy. Focus on lat stretch and contraction.",
+  tip:"Pull your elbows to your hips, not your hands to your chest. That cue activates lats over biceps.",
+  ex:[
+   {t:"Weighted pull-ups (wide grip)",r:"4 × 6–8",s:4,img:"pullup",note:"Added weight via dip belt. No belt yet? 4 × max bodyweight reps."},
+   {t:"Barbell bent-over row",r:"4 × 6–8",s:4,img:"row"},
+   {t:"Lat pulldown (wide grip)",r:"3 × 10–12",s:3,img:"pulldown"},
+   {t:"Single-arm dumbbell row",r:"3 × 10–12",s:3,img:"row",note:"Each side"},
+   {t:"Cable straight-arm pulldown",r:"3 × 12–15",s:3,img:"straightarm"},
+   {t:"Seated cable row (close grip)",r:"3 × 10–12",s:3,img:"cablerow"}]},
+ {name:"Legs",sub:"Strength & Size",focus:"Build quads, hamstrings, and glutes for athletic balance and lower body strength.",
+  tip:"Depth on squats matters more than load. Hit parallel or below before adding weight to the bar.",
+  ex:[
+   {t:"Barbell back squat",r:"4 × 5–6",s:4,img:"squat"},
+   {t:"Romanian deadlift",r:"4 × 8–10",s:4,img:"hinge"},
+   {t:"Leg press (feet high & wide)",r:"3 × 10–12",s:3,img:"legpress"},
+   {t:"Walking lunges",r:"3 × 12",s:3,img:"lunge",note:"Each leg"},
+   {t:"Leg curl (machine)",r:"3 × 12–15",s:3,img:"legcurl"},
+   {t:"Standing calf raise",r:"4 × 15–20",s:4,img:"calf"}]},
+ {name:"Chest & Arms",sub:"",focus:"Upper chest emphasis for a broader front-on look. Flat bench for overall chest mass. Arms as finisher.",
+  tip:"Incline work builds the upper chest shelf that reads as width in a T-shirt — don't skip it for flat only.",
+  ex:[
+   {t:"Flat barbell bench press",r:"4 × 5–6",s:4,img:"bench"},
+   {t:"Incline barbell press",r:"4 × 6–8",s:4,img:"incline"},
+   {t:"Incline dumbbell press",r:"3 × 8–10",s:3,img:"incline"},
+   {t:"Cable fly (high to low)",r:"3 × 12–15",s:3,img:"fly"},
+   {t:"Barbell / EZ-bar curl",r:"3 × 8–10",s:3,img:"curl"},
+   {t:"Hammer curl",r:"3 × 10–12",s:3,img:"hammer"},
+   {t:"Tricep pushdown (cable)",r:"3 × 12–15",s:3,img:"pushdown"},
+   {t:"Overhead tricep extension",r:"3 × 12–15",s:3,img:"overheadext"}]},
+ {name:"Shoulders",sub:"Volume + Leg Accessory",focus:"Second shoulder session for maximum width stimulus. Lighter leg work for balance and recovery.",
+  tip:"Two shoulder sessions per week is the single biggest accelerator for V-taper development at your level.",
+  ex:[
+   {t:"Dumbbell lateral raise",r:"4 × 12–15",s:4,img:"latraise"},
+   {t:"Cable lateral raise (cross-body)",r:"3 × 15",s:3,img:"latraise",note:"Each side"},
+   {t:"Machine shoulder press",r:"3 × 10–12",s:3,img:"shoulderpress"},
+   {t:"Cable upright row",r:"3 × 12",s:3,img:"uprightrow"},
+   {t:"Leg extension (machine)",r:"3 × 15",s:3,img:"legext"},
+   {t:"Hamstring curl (machine)",r:"3 × 15",s:3,img:"legcurl"},
+   {t:"Barbell hip thrust",r:"3 × 12",s:3,img:"hipthrust"}]},
+];
+
+/* ---------- STATE (program + progress persist independently of this file) ---------- */
+const SKEY='vtaper_v2';
+/* storage may be unavailable when previewing a local file — never let it crash rendering */
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function uid(){return 'x'+Date.now().toString(36)+Math.floor(Math.random()*1e7).toString(36);}
+function seedProgram(){return SEED.map(d=>({id:uid(),name:d.name,sub:d.sub,focus:d.focus,tip:d.tip,
+  ex:d.ex.map(x=>({id:uid(),t:x.t,r:x.r,s:x.s,img:x.img,note:x.note||''}))}));}
+function freshState(){return {v:2,step:2.5,program:seedProgram(),progress:{}};}
+function migrateV1(st){try{const old=JSON.parse(lsGet('vtaper_state_v1'));
+  if(!old||!old.data) return;
+  st.program.forEach((day,di)=>day.ex.forEach((ex,i)=>{const k='d'+(di+1)+'e'+i; const o=old.data[k];
+    if(o){const sets=(o.sets||[]).slice(0,ex.s); while(sets.length<ex.s)sets.push(false);
+      st.progress[ex.id]={w:o.w||0,sets};}}));
+  if(old.step)st.step=old.step;}catch(e){}}
+function load(){let st=null; try{st=JSON.parse(lsGet(SKEY));}catch(e){}
+  if(!st||!st.program){st=freshState(); migrateV1(st); lsSet(SKEY,JSON.stringify(st));}
+  if(typeof st.step!=='number')st.step=2.5; if(!st.progress)st.progress={};
+  return st;}
+function save(){lsSet(SKEY,JSON.stringify(state));}
+let state=load();
+let curDay=0, edDay=0, editIdx=-1, formImg='';
+
+/* ---------- progress per exercise (keyed by stable id) ---------- */
+function prog(ex){let p=state.progress[ex.id];
+  if(!p){p={w:0,sets:Array(ex.s).fill(false)}; state.progress[ex.id]=p;}
+  if(p.sets.length!==ex.s){const n=Array(ex.s).fill(false); for(let i=0;i<Math.min(ex.s,p.sets.length);i++)n[i]=p.sets[i]; p.sets=n;}
+  if(typeof p.w!=='number')p.w=0; return p;}
+
+/* ---------- MAIN RENDER ---------- */
+function fmt(n){return (Math.round(n*10)/10).toString();}
+function renderTabs(){const t=document.getElementById('tabs'); t.innerHTML='';
+  state.program.forEach((d,di)=>{const el=document.createElement('div');
+    el.className='tab'+(di===curDay?' active':'');
+    el.innerHTML='<b>Day '+(di+1)+'</b><small>'+esc(d.name)+'</small>';
+    el.onclick=()=>{curDay=di; renderTabs(); renderDay();}; t.appendChild(el);});}
+function renderDay(){if(curDay>=state.program.length)curDay=0;
+  const d=state.program[curDay];
+  document.getElementById('dayfocus').innerHTML='<b style="color:var(--accent2)">'+esc(d.name).toUpperCase()+(d.sub?' · '+esc(d.sub):'')+'</b><br>'+esc(d.focus);
+  document.getElementById('tipbox').innerHTML='💡 <b style="color:var(--accent2)">TIP</b> &nbsp;'+esc(d.tip||'');
+  const m=document.getElementById('main'); m.innerHTML='';
+  if(d.ex.length===0){m.innerHTML='<div style="text-align:center;color:var(--mut);padding:30px 10px;">No exercises yet.<br>Tap ☰ → Edit workouts to add some.</div>';}
+  d.ex.forEach((x)=>{const p=prog(x); const card=document.createElement('div'); card.className='ex';
+    if(p.sets.length&&p.sets.every(Boolean)) card.classList.add('done');
+    let setsHtml='<div class="setlabel">Mark each set done</div>';
+    for(let s=0;s<x.s;s++) setsHtml+='<div class="set'+(p.sets[s]?' on':'')+'" data-id="'+x.id+'" data-s="'+s+'">'+(s+1)+'</div>';
+    card.innerHTML='<div class="extop"><div class="icon"><img src="'+resolveImg(x.img)+'" alt=""></div>'+
+      '<div class="exinfo"><div class="exname">'+esc(x.t)+'</div><div class="exrep">'+esc(x.r)+'</div>'+
+      (x.note?'<div class="exnote">'+esc(x.note)+'</div>':'')+'</div></div>'+
+      '<div class="weight"><div class="wbtn" data-id="'+x.id+'" data-d="-1">−</div>'+
+      '<div class="wval" data-id="'+x.id+'" data-edit="1"><b>'+fmt(p.w)+'</b><small>kg — tap to type</small></div>'+
+      '<div class="wbtn" data-id="'+x.id+'" data-d="1">+</div></div>'+
+      '<div class="sets">'+setsHtml+'</div>';
+    m.appendChild(card);});
+  const act=document.createElement('div'); act.className='actions';
+  act.innerHTML='<div class="act clear" id="clearBtn">↺ Reset day’s checkmarks</div><div class="act tip" id="tipBtn">💡 Show tip</div>';
+  m.appendChild(act);
+  document.getElementById('clearBtn').onclick=clearDay;
+  document.getElementById('tipBtn').onclick=()=>document.getElementById('tipbox').classList.toggle('show');
+  bindCard(m); updateProgress();}
+function bindCard(root){
+  root.querySelectorAll('.wbtn').forEach(b=>b.onclick=()=>{const x=findEx(b.dataset.id); const p=prog(x);
+    p.w=Math.max(0,Math.round((p.w+parseInt(b.dataset.d)*state.step)*10)/10); save(); renderDay();});
+  root.querySelectorAll('[data-edit]').forEach(w=>w.onclick=()=>{const x=findEx(w.dataset.id); const p=prog(x);
+    const v=prompt('Enter weight in kg:',fmt(p.w));
+    if(v!==null&&v.trim()!==''){const num=parseFloat(v.replace(',','.')); if(!isNaN(num)){p.w=Math.max(0,num); save(); renderDay();}}});
+  root.querySelectorAll('.set').forEach(s=>s.onclick=()=>{const x=findEx(s.dataset.id); const p=prog(x);
+    const i=parseInt(s.dataset.s); p.sets[i]=!p.sets[i]; save(); renderDay();});}
+function findEx(id){for(const d of state.program)for(const x of d.ex)if(x.id===id)return x; return null;}
+function clearDay(){if(!confirm('Clear all checkmarks for Day '+(curDay+1)+'? (Your weights are kept.)'))return;
+  state.program[curDay].ex.forEach(x=>{const p=prog(x); p.sets=p.sets.map(()=>false);}); save(); renderDay();}
+function updateProgress(){const d=state.program[curDay]; let done=0,total=0;
+  d.ex.forEach(x=>{const p=prog(x); total+=x.s; done+=p.sets.filter(Boolean).length;});
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('barfill').style.width=pct+'%';
+  document.getElementById('progLabel').textContent=done+' / '+total+' sets done';
+  document.getElementById('progPct').textContent=pct+'%';}
+function cycleStep(){let i=STEPS.indexOf(state.step); i=(i+1)%STEPS.length; state.step=STEPS[i];
+  document.getElementById('stepchip').textContent=fmt(state.step)+' kg'; save();}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ---------- MENU SHEET ---------- */
+function openSheet(){document.getElementById('sheet').classList.add('show');}
+function closeSheet(){document.getElementById('sheet').classList.remove('show');}
+
+/* ---------- BACKUP / RESTORE ---------- */
+function backup(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  const d=new Date(); const stamp=d.getFullYear()+''+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  a.href=url; a.download='vtaper-backup-'+stamp+'.json'; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},500);
+  alert('Backup file created. On iPhone, choose "Save to Files" to keep it safe.');}
+function restore(ev){const f=ev.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{try{const obj=JSON.parse(r.result);
+    if(!obj||!obj.program) throw 0;
+    if(!confirm('Restore this backup? It replaces your current program and progress.'))return;
+    state=obj; if(typeof state.step!=='number')state.step=2.5; if(!state.progress)state.progress={};
+    save(); closeSheet(); curDay=0; document.getElementById('stepchip').textContent=fmt(state.step)+' kg';
+    renderTabs(); renderDay(); alert('Backup restored ✔');
+  }catch(e){alert('That file could not be read as a V-Taper backup.');}};
+  r.readAsText(f); ev.target.value='';}
+function resetDefault(){if(!confirm('Reset to the original 5-day program?\\n\\nThis ERASES your edits AND your logged weights/checkmarks. Consider Backup first.'))return;
+  state=freshState(); save(); curDay=0; renderTabs(); renderDay();}
+
+/* ---------- EDITOR ---------- */
+function openEditor(){edDay=Math.min(curDay,state.program.length-1); renderEditor(); document.getElementById('editor').classList.add('show');}
+function closeEditor(){document.getElementById('editor').classList.remove('show'); curDay=Math.min(curDay,state.program.length-1); renderTabs(); renderDay();}
+function renderEditor(){const chips=document.getElementById('dayChips'); chips.innerHTML='';
+  state.program.forEach((d,i)=>{const c=document.createElement('div'); c.className='dchip'+(i===edDay?' active':'');
+    c.textContent='Day '+(i+1); c.onclick=()=>{edDay=i; renderEditor();}; chips.appendChild(c);});
+  const d=state.program[edDay];
+  document.getElementById('edName').value=d.name||''; document.getElementById('edSub').value=d.sub||'';
+  document.getElementById('edFocus').value=d.focus||''; document.getElementById('edTip').value=d.tip||'';
+  const list=document.getElementById('editExList'); list.innerHTML='';
+  d.ex.forEach((x,i)=>{const row=document.createElement('div'); row.className='editex';
+    row.innerHTML='<img src="'+resolveImg(x.img)+'"><div class="nm"><b>'+esc(x.t)+'</b><small>'+esc(x.r)+' · '+x.s+' sets</small></div>'+
+      '<div class="miniBtn" data-act="up">▲</div><div class="miniBtn" data-act="dn">▼</div>'+
+      '<div class="miniBtn" data-act="ed">✏️</div>';
+    row.querySelector('[data-act=up]').onclick=()=>moveEx(i,-1);
+    row.querySelector('[data-act=dn]').onclick=()=>moveEx(i,1);
+    row.querySelector('[data-act=ed]').onclick=()=>openExForm(i);
+    list.appendChild(row);});}
+function updDay(){const d=state.program[edDay];
+  d.name=document.getElementById('edName').value; d.sub=document.getElementById('edSub').value;
+  d.focus=document.getElementById('edFocus').value; d.tip=document.getElementById('edTip').value; save();}
+function addDay(){state.program.push({id:uid(),name:'New Day',sub:'',focus:'',tip:'',ex:[]}); edDay=state.program.length-1; save(); renderEditor();}
+function delDay(){if(state.program.length<=1){alert('You need at least one day.');return;}
+  if(!confirm('Delete Day '+(edDay+1)+' and its exercises?'))return;
+  state.program[edDay].ex.forEach(x=>{delete state.progress[x.id];});
+  state.program.splice(edDay,1); edDay=Math.max(0,edDay-1); save(); renderEditor();}
+function moveEx(i,dir){const ex=state.program[edDay].ex; const j=i+dir; if(j<0||j>=ex.length)return;
+  const t=ex[i]; ex[i]=ex[j]; ex[j]=t; save(); renderEditor();}
+
+/* ---------- EXERCISE FORM ---------- */
+function openExForm(i){editIdx=i; const ex=i>=0?state.program[edDay].ex[i]:null;
+  document.getElementById('exFormTitle').textContent=i>=0?'Edit exercise':'New exercise';
+  document.getElementById('fName').value=ex?ex.t:'';
+  document.getElementById('fReps').value=ex?ex.r:'';
+  document.getElementById('fSets').value=ex?ex.s:3;
+  document.getElementById('fNote').value=ex?(ex.note||''):'';
+  formImg=ex?ex.img:'';
+  document.getElementById('delExBtn').style.display=i>=0?'block':'none';
+  buildImgGrid(); document.getElementById('exForm').classList.add('show');}
+function buildImgGrid(){const g=document.getElementById('imgGrid'); g.innerHTML='';
+  // custom uploaded image shown first if present
+  if(formImg && formImg.indexOf('data:')===0){const o=document.createElement('div'); o.className='imgopt sel';
+    o.innerHTML='<img src="'+formImg+'">'; g.appendChild(o);}
+  Object.keys(IMAGES).forEach(slug=>{const o=document.createElement('div');
+    o.className='imgopt'+(formImg===slug?' sel':'');
+    o.innerHTML='<img src="'+IMAGES[slug]+'" title="'+esc(IMG_LABELS[slug]||slug)+'">';
+    o.onclick=()=>{formImg=slug; buildImgGrid();}; g.appendChild(o);});}
+function uploadImg(ev){const f=ev.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{formImg=r.result; buildImgGrid();}; r.readAsDataURL(f); ev.target.value='';}
+function saveExForm(){const name=document.getElementById('fName').value.trim();
+  if(!name){alert('Please enter an exercise name.');return;}
+  const sets=Math.max(1,Math.min(10,parseInt(document.getElementById('fSets').value)||3));
+  const reps=document.getElementById('fReps').value.trim()||(sets+' sets');
+  const note=document.getElementById('fNote').value.trim();
+  if(editIdx>=0){const ex=state.program[edDay].ex[editIdx]; ex.t=name; ex.r=reps; ex.s=sets; ex.note=note; ex.img=formImg;}
+  else{state.program[edDay].ex.push({id:uid(),t:name,r:reps,s:sets,note:note,img:formImg||'ohp'});}
+  save(); document.getElementById('exForm').classList.remove('show'); renderEditor();}
+function deleteCurrentEx(){if(editIdx<0)return; if(!confirm('Delete this exercise?'))return;
+  const ex=state.program[edDay].ex[editIdx]; delete state.progress[ex.id];
+  state.program[edDay].ex.splice(editIdx,1); save();
+  document.getElementById('exForm').classList.remove('show'); renderEditor();}
+
+/* ---------- INIT ---------- */
+function dismissInstall(){document.getElementById('install').style.display='none'; lsSet('vtaper_install_dismissed','1');}
+if(lsGet('vtaper_install_dismissed')) document.getElementById('install').style.display='none';
+if(window.navigator.standalone) document.getElementById('install').style.display='none';
+/* offline support when served over https (GitHub Pages) */
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}
+try{
+  document.getElementById('stepchip').textContent=fmt(state.step)+' kg';
+  renderTabs(); renderDay();
+}catch(err){
+  // last-resort fallback: ignore any corrupt saved state and show the default program
+  state=freshState();
+  document.getElementById('stepchip').textContent=fmt(state.step)+' kg';
+  renderTabs(); renderDay();
+}
+</script>
+</body>
+</html>
