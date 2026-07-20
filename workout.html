@@ -170,6 +170,20 @@
   .asstoggle{display:flex;align-items:flex-start;gap:10px;background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:11px;margin-top:2px;font-size:12px;color:var(--mut);line-height:1.45;}
   .asstoggle input{flex:0 0 auto;width:20px;height:20px;margin-top:1px;accent-color:var(--accent);}
   .asstoggle b{color:var(--txt);}
+  .typesel{display:flex; gap:7px;}
+  .typesel label{flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--card2); border:1px solid var(--line); border-radius:11px; padding:11px 6px; font-size:13px; font-weight:700; color:var(--mut); cursor:pointer;}
+  .typesel input{accent-color:var(--accent); width:16px; height:16px;}
+  .typesel label:has(input:checked){border-color:var(--accent); color:var(--txt); background:#1c1408;}
+  .typehint{font-size:11.5px; color:var(--mut); line-height:1.45; background:var(--card2); border:1px solid var(--line); border-radius:11px; padding:10px; margin-top:2px;}
+  .qadd{display:block; width:100%; text-align:center; padding:14px; border:1px dashed var(--accent2); border-radius:14px; color:var(--accent2); font-weight:700; background:transparent; font-size:14px; margin:2px 0 12px;}
+  .runbox{margin-top:12px; background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:16px 12px;}
+  .runtime{text-align:center; font-size:44px; font-weight:800; letter-spacing:1px; font-variant-numeric:tabular-nums; color:var(--txt);}
+  .runstats{display:flex; justify-content:center; gap:22px; margin-top:6px; font-size:15px; font-weight:700; color:var(--accent2);}
+  .runctrl{display:flex; gap:10px; margin-top:14px;}
+  .runbtn{flex:1; padding:14px; border-radius:13px; border:none; font-size:16px; font-weight:800; background:linear-gradient(90deg,var(--accent),var(--good)); color:#06210f;}
+  .runbtn.on{background:var(--danger); color:#fff;}
+  .runreset{flex:0 0 84px; padding:14px; border-radius:13px; border:1px solid var(--line); background:var(--card); color:var(--mut); font-weight:700; font-size:14px;}
+  .runhint{margin-top:11px; font-size:11px; color:var(--mut); line-height:1.45; text-align:center;}
   .setrow input{flex:1;min-width:0;width:0;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:11px 6px;font-size:16px;text-align:center;font-family:inherit;font-weight:700;}
   .setrow input:focus{outline:none;border-color:var(--accent);}
   .setrow .x{color:var(--mut);font-weight:700;font-size:13px;}
@@ -255,12 +269,19 @@
   <div class="ovbar"><h2 id="exFormTitle">Exercise</h2><button onclick="saveExForm()">Save</button></div>
   <div class="ovbody">
     <div class="field"><label>Exercise name</label><input id="fName" placeholder="e.g. Barbell overhead press"></div>
-    <div class="row2">
+    <div class="field"><label>Type</label>
+      <div class="typesel" id="typeSel">
+        <label><input type="radio" name="extype" value="standard" onchange="onTypeChange()">Standard</label>
+        <label><input type="radio" name="extype" value="assist" onchange="onTypeChange()">Assisted</label>
+        <label><input type="radio" name="extype" value="run" onchange="onTypeChange()">Running</label>
+      </div>
+    </div>
+    <div class="row2" id="setsRow">
       <div class="field"><label>Sets &amp; reps (text)</label><input id="fReps" placeholder="e.g. 4 × 8–10"></div>
       <div class="field" style="flex:0 0 90px;"><label># of sets</label><input id="fSets" type="number" min="1" max="10" value="3"></div>
     </div>
     <div class="field"><label>Note (optional)</label><input id="fNote" placeholder="e.g. Each side"></div>
-    <label class="asstoggle"><input type="checkbox" id="fAssist"><span><b>Assisted exercise</b> — weight can go negative (assistance); progress is raising it toward 0 = bodyweight. E.g. assisted / band pull-ups.</span></label>
+    <div class="typehint" id="typeHint"></div>
     <div class="field">
       <label>Photo — tap to choose</label>
       <div class="imggrid" id="imgGrid"></div>
@@ -384,6 +405,9 @@ let curDay=0, edDay=0, editIdx=-1, formImg='';
 /* ---------- progress per exercise (keyed by stable id) ---------- */
 function repRange(r){r=String(r||'');var seg=r.indexOf('×')>=0?r.split('×')[1]:r;var n=(seg.match(/\d+/g)||[]).map(Number);if(!n.length)return{lo:8,hi:8};return{lo:n[0],hi:n.length>1?n[1]:n[0]};}
 function prog(ex){let p=state.progress[ex.id];
+  if(isRun(ex)){ if(!p||typeof p!=='object'||Array.isArray(p.sets)){p={run:true}; state.progress[ex.id]=p;}
+    if(typeof p.secs!=='number')p.secs=0; if(typeof p.meters!=='number')p.meters=0;
+    if(typeof p.rbest!=='number')p.rbest=0; p.done=!!p.done; return p; }
   if(!p||!Array.isArray(p.sets)){p={sets:[],best:0}; state.progress[ex.id]=p;}
   if(typeof p.best!=='number')p.best=0;
   if(p.sets.length&&typeof p.sets[0]!=='object'){const rr=repRange(ex.r);const ow=(typeof p.w==='number')?p.w:0;
@@ -396,7 +420,8 @@ function exVolume(p){return p.sets.reduce((a,s)=>a+(s.done?setVol(s):0),0);}
 function exFilledVol(p){return p.sets.reduce((a,s)=>a+setVol(s),0);}
 function fmtInt(n){return Math.round(n||0).toLocaleString();}
 /* ---- assisted (aim-for-0) helpers: weight can be negative = assistance; goal is to climb toward 0 (bodyweight) ---- */
-function isAssist(x){return !!(x&&x.assist);}
+function isAssist(x){return !!(x&&x.assist&&!x.run);}
+function isRun(x){return !!(x&&x.run);}
 /* top (least-assisted / heaviest) set weight, signed; null if nothing entered. doneOnly=true counts only checked sets */
 function assistTop(p,doneOnly){let best=null;p.sets.forEach(s=>{if(doneOnly&&!s.done)return;
   if(s.done||(s.reps||0)>0){const w=(typeof s.w==='number')?s.w:0;if(best===null||w>best)best=w;}});return best;}
@@ -453,6 +478,23 @@ function renderDay(){if(curDay>=state.program.length)curDay=0;
   const m=document.getElementById('main'); m.innerHTML='';
   if(d.ex.length===0){m.innerHTML='<div style="text-align:center;color:var(--mut);padding:30px 10px;">No exercises yet.<br>Tap ☰ → Edit workouts to add some.</div>';}
   d.ex.forEach((x)=>{const p=prog(x); const card=document.createElement('div'); card.className='ex';
+    if(isRun(x)){
+      const active=RUN.id===x.id&&RUN.running;
+      const secs=active?Math.floor(runElapsedMs()/1000):(p.secs||0);
+      const meters=active?RUN.meters:(p.meters||0); const rb=p.rbest||0;
+      if(p.done&&!active) card.classList.add('done');
+      card.innerHTML='<div class="extop"><div class="icon"><img src="'+resolveImg(x.img)+'" alt=""></div>'+
+        '<div class="exinfo"><div class="exname">'+esc(x.t)+'</div><div class="exrep">Running'+(rb>0?' · best '+(rb/1000).toFixed(2)+' km':'')+'</div>'+
+        (x.note?'<div class="exnote">'+esc(x.note)+'</div>':'')+'</div></div>'+
+        '<div class="runbox">'+
+          '<div class="runtime" id="run-time-'+x.id+'">'+fmtClock(secs*1000)+'</div>'+
+          '<div class="runstats"><span id="run-dist-'+x.id+'">'+(meters/1000).toFixed(2)+' km</span><span id="run-pace-'+x.id+'">'+paceStr(secs,meters)+'</span></div>'+
+          '<div class="runctrl"><button class="runbtn'+(active?' on':'')+'" id="run-btn-'+x.id+'" data-id="'+x.id+'">'+(active?'■ Stop':(secs>0?'▶ Resume':'▶ Start'))+'</button>'+
+          '<button class="runreset" data-id="'+x.id+'">Reset</button></div>'+
+          '<div class="runhint">Distance uses GPS — allow location, and keep the app open with the screen on while you run.</div>'+
+        '</div>';
+      m.appendChild(card); return;
+    }
     if(p.sets.length&&p.sets.every(s=>s.done)) card.classList.add('done');
     let rows='';const asst=isAssist(x);
     p.sets.forEach((s,i)=>{const extra=i>=x.s;
@@ -473,8 +515,10 @@ function renderDay(){if(curDay>=state.program.length)curDay=0;
       '<button class="addset" data-id="'+x.id+'">＋ Add set</button>'+
       '<div class="sumwrap" data-id="'+x.id+'">'+sumHTML(x)+'</div>';
     m.appendChild(card);});
+  const qadd=document.createElement('button'); qadd.className='qadd';
+  qadd.textContent='＋ Add exercise / run'; qadd.onclick=quickAdd; m.appendChild(qadd);
   if(d.ex.length){const fb=document.createElement('button');
-    const allDone=d.ex.every(x=>{const p=prog(x); return p.sets.length&&p.sets.every(s=>s.done);});
+    const allDone=d.ex.every(x=>{const p=prog(x); return isRun(x)?!!p.done:(p.sets.length&&p.sets.every(s=>s.done));});
     fb.className='finish'+(allDone?' ready':''); fb.id='finishBtn';
     fb.textContent=(allDone?'✓ Finish & log this workout':'Finish & log this workout');
     fb.onclick=finishWorkout; m.appendChild(fb);}
@@ -498,12 +542,15 @@ function bindCard(root){
   root.querySelectorAll('.setdel').forEach(b=>b.onclick=()=>{const x=findEx(b.dataset.id);const p=prog(x);const i=+b.dataset.s;
     if(p.sets.length>1){p.sets.splice(i,1);save();renderDay();}});
   root.querySelectorAll('.addset').forEach(b=>b.onclick=()=>{const x=findEx(b.dataset.id);const p=prog(x);
-    const last=p.sets[p.sets.length-1]||{w:0,reps:0};p.sets.push({w:last.w||0,reps:last.reps||0,done:false});save();renderDay();});}
+    const last=p.sets[p.sets.length-1]||{w:0,reps:0};p.sets.push({w:last.w||0,reps:last.reps||0,done:false});save();renderDay();});
+  root.querySelectorAll('.runbtn').forEach(b=>b.onclick=()=>{const id=b.dataset.id;
+    if(RUN.id===id&&RUN.running)stopRun(id); else startRun(id);});
+  root.querySelectorAll('.runreset').forEach(b=>b.onclick=()=>resetRun(b.dataset.id));}
 function findEx(id){for(const d of state.program)for(const x of d.ex)if(x.id===id)return x; return null;}
 function clearDay(){if(!confirm('Reset all ✓ marks for Day '+(curDay+1)+'? (Weights & reps are kept.)'))return;
-  state.program[curDay].ex.forEach(x=>{const p=prog(x);p.sets.forEach(s=>s.done=false);}); save(); renderDay();}
+  state.program[curDay].ex.forEach(x=>{const p=prog(x);if(isRun(x))return;p.sets.forEach(s=>s.done=false);}); save(); renderDay();}
 function updateProgress(){const d=state.program[curDay]; let done=0,total=0;
-  d.ex.forEach(x=>{const p=prog(x); total+=p.sets.length; done+=p.sets.filter(s=>s.done).length;});
+  d.ex.forEach(x=>{const p=prog(x); if(isRun(x)){total+=1; done+=(p.done?1:0); return;} total+=p.sets.length; done+=p.sets.filter(s=>s.done).length;});
   const pct=total?Math.round(done/total*100):0;
   document.getElementById('barfill').style.width=pct+'%';
   document.getElementById('progLabel').textContent=done+' / '+total+' sets done';
@@ -511,6 +558,50 @@ function updateProgress(){const d=state.program[curDay]; let done=0,total=0;
 function cycleStep(){let i=STEPS.indexOf(state.step); i=(i+1)%STEPS.length; state.step=STEPS[i];
   document.getElementById('stepchip').textContent=fmt(state.step)+' kg'; save();}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ---------- RUNNING: stopwatch + GPS distance + pace (one active run at a time) ---------- */
+let RUN={id:null,running:false,startMs:0,accMs:0,meters:0,watchId:null,wake:null,last:null,tick:null,gps:''};
+function runElapsedMs(){return RUN.accMs+(RUN.running?(Date.now()-RUN.startMs):0);}
+function fmtClock(ms){const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  return (h>0?pad(h)+':':'')+pad(m)+':'+pad(sec);}
+function paceStr(secs,meters){const km=meters/1000; if(km<0.03||secs<=0)return '—:— /km';
+  const p=Math.round(secs/km); return pad(Math.floor(p/60))+':'+pad(p%60)+' /km';}
+function haversine(a,b){const R=6371000,toR=x=>x*Math.PI/180;
+  const dLat=toR(b.lat-a.lat),dLon=toR(b.lon-a.lon);
+  const s=Math.sin(dLat/2)**2+Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));}
+function updateRunDisplay(id){const ms=runElapsedMs();
+  const t=document.getElementById('run-time-'+id); if(t)t.textContent=fmtClock(ms);
+  const d=document.getElementById('run-dist-'+id); if(d)d.textContent=RUN.gps?RUN.gps:(RUN.meters/1000).toFixed(2)+' km';
+  const p=document.getElementById('run-pace-'+id); if(p)p.textContent=paceStr(Math.floor(ms/1000),RUN.meters);}
+function startGeo(id){RUN.gps=''; if(!navigator.geolocation){RUN.gps='no GPS';updateRunDisplay(id);return;}
+  RUN.watchId=navigator.geolocation.watchPosition(pos=>{const a=pos.coords.accuracy; if(a>30)return;
+    const cur={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    if(RUN.last){const dm=haversine(RUN.last,cur); if(dm>1&&dm<60)RUN.meters+=dm;}
+    RUN.last=cur; RUN.gps=''; updateRunDisplay(id);},
+    err=>{RUN.gps=(err&&err.code===1)?'GPS denied':'GPS…'; updateRunDisplay(id);},
+    {enableHighAccuracy:true,maximumAge:1000,timeout:20000});}
+function stopGeo(){if(RUN.watchId!=null&&navigator.geolocation)navigator.geolocation.clearWatch(RUN.watchId); RUN.watchId=null;}
+function requestWake(){try{if('wakeLock'in navigator)navigator.wakeLock.request('screen').then(w=>{RUN.wake=w;}).catch(()=>{});}catch(e){}}
+function releaseWake(){try{if(RUN.wake){RUN.wake.release();RUN.wake=null;}}catch(e){}}
+function setRunBtn(id,running){const b=document.getElementById('run-btn-'+id);
+  if(b){b.textContent=running?'■ Stop':(prog(findEx(id)).secs>0?'▶ Resume':'▶ Start'); b.className='runbtn'+(running?' on':'');}}
+function startRun(id){ if(RUN.running&&RUN.id!==id)stopRun(RUN.id); if(RUN.running)return;
+  const p=prog(findEx(id));
+  if(RUN.id!==id){RUN.id=id; RUN.accMs=(p.secs||0)*1000; RUN.meters=p.meters||0;}
+  RUN.running=true; RUN.startMs=Date.now(); RUN.last=null;
+  RUN.tick=setInterval(()=>updateRunDisplay(id),300); startGeo(id); requestWake();
+  setRunBtn(id,true); updateRunDisplay(id);}
+function stopRun(id){ if(!RUN.running)return;
+  RUN.accMs+=Date.now()-RUN.startMs; RUN.running=false;
+  if(RUN.tick){clearInterval(RUN.tick);RUN.tick=null;} stopGeo(); releaseWake();
+  const p=prog(findEx(id)); p.secs=Math.round(RUN.accMs/1000); p.meters=Math.round(RUN.meters); p.done=p.secs>0;
+  if(p.meters>(p.rbest||0))p.rbest=p.meters; save(); renderDay();}
+function resetRun(id){ if(!confirm('Reset this run’s time & distance?'))return;
+  if(RUN.running&&RUN.id===id)stopRun(id);
+  RUN.id=null; RUN.accMs=0; RUN.meters=0; RUN.last=null; RUN.gps='';
+  const p=prog(findEx(id)); p.secs=0; p.meters=0; p.done=false; save(); renderDay();}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&RUN.running)requestWake(); });
 
 /* ---------- MENU SHEET ---------- */
 function openSheet(){document.getElementById('sheet').classList.add('show');}
@@ -538,6 +629,15 @@ function resetDefault(){if(!confirm('Reset to the original 5-day program?\\n\\nT
 /* ---------- EDITOR ---------- */
 function openEditor(){edDay=Math.min(curDay,state.program.length-1); renderEditor(); document.getElementById('editor').classList.add('show');}
 function closeEditor(){document.getElementById('editor').classList.remove('show'); curDay=Math.min(curDay,state.program.length-1); renderTabs(); renderDay();}
+/* quick-add an exercise/run straight from the workout screen (targets the current day) */
+function quickAdd(){edDay=curDay; openExForm(-1);}
+function formType(){const r=document.querySelector('input[name="extype"]:checked'); return r?r.value:'standard';}
+function onTypeChange(){const t=formType();
+  document.getElementById('setsRow').style.display=(t==='run')?'none':'flex';
+  const h=document.getElementById('typeHint');
+  h.textContent = t==='assist' ? 'Assisted: weight logs as negative (assistance); progress = raising it toward 0 = bodyweight. E.g. band/assisted pull-ups.'
+    : t==='run' ? 'Running: a start/stop stopwatch with GPS distance & pace. Allow location and keep the screen on while you run.'
+    : 'Standard: log weight × reps per set; progress tracks your best volume.';}
 function renderEditor(){const chips=document.getElementById('dayChips'); chips.innerHTML='';
   state.program.forEach((d,i)=>{const c=document.createElement('div'); c.className='dchip'+(i===edDay?' active':'');
     c.textContent='Day '+(i+1); c.onclick=()=>{edDay=i; renderEditor();}; chips.appendChild(c);});
@@ -546,7 +646,7 @@ function renderEditor(){const chips=document.getElementById('dayChips'); chips.i
   document.getElementById('edFocus').value=d.focus||''; document.getElementById('edTip').value=d.tip||'';
   const list=document.getElementById('editExList'); list.innerHTML='';
   d.ex.forEach((x,i)=>{const row=document.createElement('div'); row.className='editex';
-    row.innerHTML='<img src="'+resolveImg(x.img)+'"><div class="nm"><b>'+esc(x.t)+'</b><small>'+esc(x.r)+' · '+x.s+' sets</small></div>'+
+    row.innerHTML='<img src="'+resolveImg(x.img)+'"><div class="nm"><b>'+esc(x.t)+'</b><small>'+(isRun(x)?'🏃 Running':(isAssist(x)?'± '+esc(x.r):esc(x.r)+' · '+x.s+' sets'))+'</small></div>'+
       '<div class="miniBtn" data-act="up">▲</div><div class="miniBtn" data-act="dn">▼</div>'+
       '<div class="miniBtn" data-act="ed">✏️</div>';
     row.querySelector('[data-act=up]').onclick=()=>moveEx(i,-1);
@@ -571,7 +671,9 @@ function openExForm(i){editIdx=i; const ex=i>=0?state.program[edDay].ex[i]:null;
   document.getElementById('fReps').value=ex?ex.r:'';
   document.getElementById('fSets').value=ex?ex.s:3;
   document.getElementById('fNote').value=ex?(ex.note||''):'';
-  document.getElementById('fAssist').checked=ex?!!ex.assist:false;
+  const type=ex?(ex.run?'run':(ex.assist?'assist':'standard')):'standard';
+  const rb=document.querySelector('input[name="extype"][value="'+type+'"]'); if(rb)rb.checked=true;
+  onTypeChange();
   formImg=ex?ex.img:'';
   document.getElementById('delExBtn').style.display=i>=0?'block':'none';
   buildImgGrid(); document.getElementById('exForm').classList.add('show');}
@@ -590,10 +692,11 @@ function saveExForm(){const name=document.getElementById('fName').value.trim();
   const sets=Math.max(1,Math.min(10,parseInt(document.getElementById('fSets').value)||3));
   const reps=document.getElementById('fReps').value.trim()||(sets+' sets');
   const note=document.getElementById('fNote').value.trim();
-  const assist=document.getElementById('fAssist').checked;
-  if(editIdx>=0){const ex=state.program[edDay].ex[editIdx]; ex.t=name; ex.r=reps; ex.s=sets; ex.note=note; ex.img=formImg; ex.assist=assist;}
-  else{state.program[edDay].ex.push({id:uid(),t:name,r:reps,s:sets,note:note,img:formImg||'ohp',assist:assist});}
-  save(); document.getElementById('exForm').classList.remove('show'); renderEditor();}
+  const type=formType(); const run=type==='run'; const assist=type==='assist';
+  if(editIdx>=0){const ex=state.program[edDay].ex[editIdx]; ex.t=name; ex.r=(run?'Run':reps); ex.s=(run?1:sets); ex.note=note; ex.img=formImg; ex.assist=assist; ex.run=run;}
+  else{state.program[edDay].ex.push({id:uid(),t:name,r:(run?'Run':reps),s:(run?1:sets),note:note,img:formImg||(run?'':'ohp'),assist:assist,run:run});}
+  save(); document.getElementById('exForm').classList.remove('show');
+  renderEditor(); renderTabs(); renderDay();}
 function deleteCurrentEx(){if(editIdx<0)return; if(!confirm('Delete this exercise?'))return;
   const ex=state.program[edDay].ex[editIdx]; delete state.progress[ex.id];
   state.program[edDay].ex.splice(editIdx,1); save();
@@ -606,11 +709,17 @@ function dstr(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDat
 function fromStr(s){const a=s.split('-'); return new Date(+a[0],+a[1]-1,+a[2]);}
 function todayStr(){return dstr(new Date());}
 function finishWorkout(){const d=state.program[curDay]; if(!d.ex.length){alert('No exercises to log.');return;}
-  const doneSets=d.ex.reduce((a,x)=>a+prog(x).sets.filter(s=>s.done).length,0);
-  const totSets=d.ex.reduce((a,x)=>a+prog(x).sets.length,0);
+  const doneSets=d.ex.reduce((a,x)=>{const p=prog(x);return a+(isRun(x)?(p.done?1:0):p.sets.filter(s=>s.done).length);},0);
+  const totSets=d.ex.reduce((a,x)=>{const p=prog(x);return a+(isRun(x)?1:p.sets.length);},0);
   if(!confirm('Log today’s "'+d.name+'" workout?\n\n'+doneSets+' of '+totSets+' sets checked. Checkmarks reset for next time — your weights & reps carry over.'))return;
   let dayVol=0,beat=0,pbs=[],shorts=[];
-  const exlog=d.ex.map(x=>{const p=prog(x);const doneN=p.sets.filter(s=>s.done).length;
+  const exlog=d.ex.map(x=>{const p=prog(x);
+    if(isRun(x)){const secs=p.secs||0,meters=p.meters||0;
+      if(meters>0&&meters>(p.rbest||0)){beat++;pbs.push(x.t+' → '+(meters/1000).toFixed(2)+' km');p.rbest=meters;}
+      const e={t:x.t,run:true,secs:secs,meters:meters,done:p.done?1:0,total:1};
+      p.secs=0;p.meters=0;p.done=false; if(RUN.id===x.id){RUN.id=null;RUN.accMs=0;RUN.meters=0;}
+      return e;}
+    const doneN=p.sets.filter(s=>s.done).length;
     if(isAssist(x)){const top=assistTop(p,true);const oldB=assistBest(p);
       if(top!==null){ if(oldB===null||top>oldB){beat++;pbs.push(x.t+' → '+fmt(top)+' kg'+(oldB!==null?' (+'+fmt(top-oldB)+')':''));p.abest=top;}
         else if(top<oldB){shorts.push(x.t+' '+fmt(top-oldB)+' kg');} }
@@ -622,7 +731,7 @@ function finishWorkout(){const d=state.program[curDay]; if(!d.ex.length){alert('
     return {t:x.t,vol:vol,best:p.best||0,done:doneN,total:p.sets.length,w:topw};});
   const entry={name:d.name,sub:d.sub||'',di:curDay,ts:Date.now(),vol:dayVol,ex:exlog};
   const k=todayStr(); if(!state.history)state.history={}; (state.history[k]=state.history[k]||[]).push(entry);
-  d.ex.forEach(x=>{const p=prog(x);p.sets.forEach(s=>s.done=false);});
+  d.ex.forEach(x=>{const p=prog(x);if(isRun(x))return;p.sets.forEach(s=>s.done=false);});
   save(); renderDay();
   let msg='Logged "'+d.name+'" ✔\nTotal volume: '+fmtInt(dayVol)+' kg·reps\n';
   if(beat)msg+='\n🎉 New PB on '+beat+' exercise'+(beat>1?'s':'')+':\n'+pbs.join('\n')+'\n';
@@ -665,7 +774,10 @@ function showCalDetail(ds){const entries=state.history[ds]||[]; const box=docume
   entries.forEach((en,idx)=>{const tm=new Date(en.ts); const ts=pad(tm.getHours())+':'+pad(tm.getMinutes());
     html+='<div class="detailcard"><div class="dh"><b style="color:'+DAYCOLORS[en.di%DAYCOLORS.length]+'">'+esc(en.name)+(en.sub?' · '+esc(en.sub):'')+'</b>'+
       '<small>'+ts+' <button class="dellog" onclick="delLog(\''+ds+'\','+idx+')">delete</button></small></div>';
-    en.ex.forEach(x=>{html+='<div class="detailrow"><span>'+esc(x.t)+' <span style="color:var(--mut)">('+x.done+'/'+x.total+' sets)</span></span><span class="w">'+(x.vol!=null?fmtInt(x.vol)+' vol':fmt(x.w||0)+' kg')+'</span></div>';});
+    en.ex.forEach(x=>{let right,meta;
+      if(x.run){meta='run'; right=fmtClock((x.secs||0)*1000)+(x.meters?' · '+(x.meters/1000).toFixed(2)+' km':'');}
+      else{meta=x.done+'/'+x.total+' sets'; right=(x.vol!=null?fmtInt(x.vol)+' vol':fmt(x.w||0)+' kg');}
+      html+='<div class="detailrow"><span>'+esc(x.t)+' <span style="color:var(--mut)">('+meta+')</span></span><span class="w">'+right+'</span></div>';});
     html+='<div class="editrow"><span>📅 Date done — tap to change</span><input type="date" class="dateedit" value="'+ds+'" onchange="moveLog(\''+ds+'\','+idx+',this.value)"></div>';
     html+='</div>';});
   box.innerHTML=html; box.scrollIntoView({behavior:'smooth',block:'nearest'});}
