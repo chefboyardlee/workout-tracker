@@ -161,6 +161,12 @@
   .setrows{margin-top:10px;display:flex;flex-direction:column;gap:8px;}
   .setrow{display:flex;align-items:center;gap:7px;}
   .setn{flex:0 0 18px;text-align:center;color:var(--mut);font-weight:700;font-size:13px;}
+  .signbtn{flex:0 0 34px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--accent2);font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;user-select:none;}
+  .signbtn.neg{background:var(--accent);border-color:var(--accent);color:#2a1500;}
+  .signbtn:active{opacity:.7;}
+  .asstoggle{display:flex;align-items:flex-start;gap:10px;background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:11px;margin-top:2px;font-size:12px;color:var(--mut);line-height:1.45;}
+  .asstoggle input{flex:0 0 auto;width:20px;height:20px;margin-top:1px;accent-color:var(--accent);}
+  .asstoggle b{color:var(--txt);}
   .setrow input{flex:1;min-width:0;width:0;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:11px 6px;font-size:16px;text-align:center;font-family:inherit;font-weight:700;}
   .setrow input:focus{outline:none;border-color:var(--accent);}
   .setrow .x{color:var(--mut);font-weight:700;font-size:13px;}
@@ -251,6 +257,7 @@
       <div class="field" style="flex:0 0 90px;"><label># of sets</label><input id="fSets" type="number" min="1" max="10" value="3"></div>
     </div>
     <div class="field"><label>Note (optional)</label><input id="fNote" placeholder="e.g. Each side"></div>
+    <label class="asstoggle"><input type="checkbox" id="fAssist"><span><b>Assisted exercise</b> — weight can go negative (assistance); progress is raising it toward 0 = bodyweight. E.g. assisted / band pull-ups.</span></label>
     <div class="field">
       <label>Photo — tap to choose</label>
       <div class="imggrid" id="imgGrid"></div>
@@ -302,7 +309,7 @@ const SEED=[
  {name:"Back",sub:"Width & Thickness",focus:"Wide lats = narrower-looking waist. Pull heavy. Focus on lat stretch and contraction.",
   tip:"Pull your elbows to your hips, not your hands to your chest. That cue activates lats over biceps.",
   ex:[
-   {t:"Weighted pull-ups (wide grip)",r:"4 × 6–8",s:4,img:"pullup",note:"Added weight via dip belt. No belt yet? 4 × max bodyweight reps."},
+   {t:"Weighted pull-ups (wide grip)",r:"4 × 6–8",s:4,img:"pullup",assist:true,note:"Assisted? Log the assist as a negative weight (tap ±). Goal: raise it toward 0 = full bodyweight, then add weight."},
    {t:"Barbell bent-over row",r:"4 × 6–8",s:4,img:"row"},
    {t:"Lat pulldown (wide grip)",r:"3 × 10–12",s:3,img:"pulldown"},
    {t:"Single-arm dumbbell row",r:"3 × 10–12",s:3,img:"dbrow",note:"Each side"},
@@ -347,7 +354,7 @@ function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 function uid(){return 'x'+Date.now().toString(36)+Math.floor(Math.random()*1e7).toString(36);}
 function seedProgram(){return SEED.map(d=>({id:uid(),name:d.name,sub:d.sub,focus:d.focus,tip:d.tip,
-  ex:d.ex.map(x=>({id:uid(),t:x.t,r:x.r,s:x.s,img:x.img,note:x.note||''}))}));}
+  ex:d.ex.map(x=>({id:uid(),t:x.t,r:x.r,s:x.s,img:x.img,note:x.note||'',assist:!!x.assist}))}));}
 function freshState(){return {v:2,step:2.5,program:seedProgram(),progress:{}};}
 function migrateV1(st){try{const old=JSON.parse(lsGet('vtaper_state_v1'));
   if(!old||!old.data) return;
@@ -358,10 +365,14 @@ function migrateV1(st){try{const old=JSON.parse(lsGet('vtaper_state_v1'));
 function fixImgSlugs(st){ if(st.imgfix===2)return; var R=[['cable lateral raise','latraise','cablelatraise'],['single-arm dumbbell row','row','dbrow'],['incline dumbbell press','incline','inclinedb'],['machine shoulder press','shoulderpress','machinepress']];
   try{ (st.program||[]).forEach(function(d){ (d.ex||[]).forEach(function(x){ var n=(x.t||'').toLowerCase(); R.forEach(function(r){ if(n.indexOf(r[0])>=0 && x.img===r[1]) x.img=r[2]; }); }); }); }catch(e){}
   st.imgfix=2; }
+function fixAssist(st){ if(st.assistMig)return;
+  try{ (st.program||[]).forEach(function(d){ (d.ex||[]).forEach(function(x){ var n=(x.t||'').toLowerCase();
+    if(x.assist===undefined && (n.indexOf('pull-up')>=0||n.indexOf('pull up')>=0||n.indexOf('pullup')>=0)) x.assist=true; }); }); }catch(e){}
+  st.assistMig=1; }
 function load(){let st=null; try{st=JSON.parse(lsGet(SKEY));}catch(e){}
   if(!st||!st.program){st=freshState(); migrateV1(st); lsSet(SKEY,JSON.stringify(st));}
   if(typeof st.step!=='number')st.step=2.5; if(!st.progress)st.progress={}; if(!st.history)st.history={};
-  fixImgSlugs(st); lsSet(SKEY,JSON.stringify(st));
+  fixImgSlugs(st); fixAssist(st); lsSet(SKEY,JSON.stringify(st));
   return st;}
 function save(){lsSet(SKEY,JSON.stringify(state));}
 let state=load();
@@ -381,6 +392,12 @@ function setVol(s){return (s.w||0)*(s.reps||0);}
 function exVolume(p){return p.sets.reduce((a,s)=>a+(s.done?setVol(s):0),0);}
 function exFilledVol(p){return p.sets.reduce((a,s)=>a+setVol(s),0);}
 function fmtInt(n){return Math.round(n||0).toLocaleString();}
+/* ---- assisted (aim-for-0) helpers: weight can be negative = assistance; goal is to climb toward 0 (bodyweight) ---- */
+function isAssist(x){return !!(x&&x.assist);}
+/* top (least-assisted / heaviest) set weight, signed; null if nothing entered. doneOnly=true counts only checked sets */
+function assistTop(p,doneOnly){let best=null;p.sets.forEach(s=>{if(doneOnly&&!s.done)return;
+  if(s.done||(s.reps||0)>0){const w=(typeof s.w==='number')?s.w:0;if(best===null||w>best)best=w;}});return best;}
+function assistBest(p){return (typeof p.abest==='number')?p.abest:null;}
 function suggestScheme(x){const p=prog(x);const T=p.best||0;if(T<=0)return null;
   const S=Math.max(1,x.s);const rr=repRange(x.r);const step=state.step||2.5;
   let w0=0;p.sets.forEach(s=>{if((s.w||0)>w0)w0=s.w;});
@@ -391,13 +408,25 @@ function suggestScheme(x){const p=prog(x);const T=p.best||0;if(T<=0)return null;
   for(let k=1;k<=6;k++){let w=Math.round((w0+step*k)*10)/10;let reps=Math.ceil((T+1)/(S*w));
     if(reps<=rr.hi)return{sch:build(S,Math.max(rr.lo,reps),w)};}
   return{sch:build(S,rr.hi,Math.round((w0+step)*10)/10)};}
-function ovlHTML(x){const p=prog(x);const best=p.best||0;
+function ovlHTML(x){const p=prog(x);
+  if(isAssist(x)){const b=assistBest(p);
+    if(b===null)return '<div class="ovl new">✨ Assisted mode — log your assist as a <b>negative</b> weight (tap ±). Your top set becomes the target to beat, climbing toward 0 = bodyweight.</div>';
+    const goal=b>=0?'You’re at bodyweight+ — now just add weight! 💪':'Goal: <b>0 kg</b> = full bodyweight pull-up';
+    return '<div class="ovl"><div class="best">🏆 Least assist so far: <b>'+fmt(b)+' kg</b></div><div class="sug">🎯 Beat it: a top set heavier than <b>'+fmt(b)+' kg</b> (closer to 0). '+goal+'</div></div>';}
+  const best=p.best||0;
   if(best<=0)return '<div class="ovl new">✨ First time — this session’s volume becomes your target to beat.</div>';
   const sug=suggestScheme(x);let s='';
   if(sug&&sug.sch){const c=sug.sch;s='<div class="sug">🎯 Beat it: <b>'+c.sets+' × '+c.reps+' @ '+fmt(c.w)+'kg</b> = '+fmtInt(c.total)+' <span class="ov">(+'+fmtInt(c.over)+')</span></div>';}
   else if(sug&&sug.text)s='<div class="sug">🎯 '+sug.text+'</div>';
   return '<div class="ovl"><div class="best">🏆 Best to beat: <b>'+fmtInt(best)+'</b> <span class="unit">kg·reps</span></div>'+s+'</div>';}
-function sumHTML(x){const p=prog(x);const vol=exVolume(p);const best=p.best||0;
+function sumHTML(x){const p=prog(x);
+  if(isAssist(x)){const cur=assistTop(p,false);const b=assistBest(p);
+    if(cur===null)return '<div class="sum muted">Enter your assist weight (tap ± for negative) × reps, then tap ✓ on each set.</div>';
+    if(b===null)return '<div class="sum base">Top set: <b>'+fmt(cur)+' kg</b> — sets your baseline. Aim to raise it toward 0 💪</div>';
+    if(cur>b)return '<div class="sum win">✅ '+fmt(cur)+' kg — <b>'+fmt(cur-b)+' kg</b> less assist than your best!</div>';
+    if(cur===b)return '<div class="sum gap">Top set: <b>'+fmt(cur)+' kg</b> — matches your best. Push for less assist.</div>';
+    return '<div class="sum gap">Top set: <b>'+fmt(cur)+' kg</b> — <b>'+fmt(b-cur)+' kg</b> more assist than your best ('+fmt(b)+').</div>';}
+  const vol=exVolume(p);const best=p.best||0;
   if(!p.sets.some(s=>s.done)&&exFilledVol(p)===0)return '<div class="sum muted">Enter weight × reps, then tap ✓ on each set.</div>';
   if(best<=0)return '<div class="sum base">Session volume: <b>'+fmtInt(vol)+'</b> — sets your baseline 💪</div>';
   if(vol>best)return '<div class="sum win">✅ '+fmtInt(vol)+' — beat your best by <b>+'+fmtInt(vol-best)+'</b>!</div>';
@@ -422,10 +451,11 @@ function renderDay(){if(curDay>=state.program.length)curDay=0;
   if(d.ex.length===0){m.innerHTML='<div style="text-align:center;color:var(--mut);padding:30px 10px;">No exercises yet.<br>Tap ☰ → Edit workouts to add some.</div>';}
   d.ex.forEach((x)=>{const p=prog(x); const card=document.createElement('div'); card.className='ex';
     if(p.sets.length&&p.sets.every(s=>s.done)) card.classList.add('done');
-    let rows='';
+    let rows='';const asst=isAssist(x);
     p.sets.forEach((s,i)=>{const extra=i>=x.s;
       rows+='<div class="setrow"><span class="setn">'+(i+1)+'</span>'+
-        '<input class="win" inputmode="decimal" data-id="'+x.id+'" data-s="'+i+'" data-k="w" value="'+(s.w||'')+'" placeholder="kg">'+
+        (asst?'<div class="signbtn'+((s.w||0)<0?' neg':'')+'" data-id="'+x.id+'" data-s="'+i+'" title="Toggle assist (±)">±</div>':'')+
+        '<input class="win" inputmode="decimal" data-id="'+x.id+'" data-s="'+i+'" data-k="w" value="'+(s.w||'')+'" placeholder="'+(asst?'assist':'kg')+'">'+
         '<span class="x">×</span>'+
         '<input class="rin" inputmode="numeric" data-id="'+x.id+'" data-s="'+i+'" data-k="reps" value="'+(s.reps||'')+'" placeholder="reps">'+
         '<div class="setdone'+(s.done?' on':'')+'" data-id="'+x.id+'" data-s="'+i+'">✓</div>'+
@@ -435,7 +465,7 @@ function renderDay(){if(curDay>=state.program.length)curDay=0;
       '<div class="exinfo"><div class="exname">'+esc(x.t)+'</div><div class="exrep">Target: '+esc(x.r)+'</div>'+
       (x.note?'<div class="exnote">'+esc(x.note)+'</div>':'')+'</div></div>'+
       '<div class="ovlwrap" data-id="'+x.id+'">'+ovlHTML(x)+'</div>'+
-      '<div class="setlabel">Weight × actual reps — tap ✓ when done</div>'+
+      '<div class="setlabel">'+(asst?'Assist weight (tap ± for negative) × reps — tap ✓ when done':'Weight × actual reps — tap ✓ when done')+'</div>'+
       '<div class="setrows">'+rows+'</div>'+
       '<button class="addset" data-id="'+x.id+'">＋ Add set</button>'+
       '<div class="sumwrap" data-id="'+x.id+'">'+sumHTML(x)+'</div>';
@@ -454,8 +484,12 @@ function renderDay(){if(curDay>=state.program.length)curDay=0;
 function bindCard(root){
   root.querySelectorAll('.win,.rin').forEach(inp=>{inp.addEventListener('input',()=>{
     const x=findEx(inp.dataset.id);const p=prog(x);const i=+inp.dataset.s;if(!p.sets[i])return;
-    let v=parseFloat(String(inp.value).replace(',','.'));if(isNaN(v)||v<0)v=0;
+    let v=parseFloat(String(inp.value).replace(',','.'));if(isNaN(v))v=0;
+    const isW=inp.dataset.k==='w';
+    if(!(isW&&isAssist(x))&&v<0)v=0; /* assist weight may be negative; everything else clamps at 0 */
     p.sets[i][inp.dataset.k]=inp.dataset.k==='reps'?Math.round(v):v;save();refreshEx(x.id);});});
+  root.querySelectorAll('.signbtn').forEach(b=>b.onclick=()=>{const x=findEx(b.dataset.id);const p=prog(x);const i=+b.dataset.s;
+    if(p.sets[i]){p.sets[i].w=-(p.sets[i].w||0);save();renderDay();}});
   root.querySelectorAll('.setdone').forEach(b=>b.onclick=()=>{const x=findEx(b.dataset.id);const p=prog(x);const i=+b.dataset.s;
     if(p.sets[i]){p.sets[i].done=!p.sets[i].done;save();renderDay();}});
   root.querySelectorAll('.setdel').forEach(b=>b.onclick=()=>{const x=findEx(b.dataset.id);const p=prog(x);const i=+b.dataset.s;
@@ -534,6 +568,7 @@ function openExForm(i){editIdx=i; const ex=i>=0?state.program[edDay].ex[i]:null;
   document.getElementById('fReps').value=ex?ex.r:'';
   document.getElementById('fSets').value=ex?ex.s:3;
   document.getElementById('fNote').value=ex?(ex.note||''):'';
+  document.getElementById('fAssist').checked=ex?!!ex.assist:false;
   formImg=ex?ex.img:'';
   document.getElementById('delExBtn').style.display=i>=0?'block':'none';
   buildImgGrid(); document.getElementById('exForm').classList.add('show');}
@@ -552,8 +587,9 @@ function saveExForm(){const name=document.getElementById('fName').value.trim();
   const sets=Math.max(1,Math.min(10,parseInt(document.getElementById('fSets').value)||3));
   const reps=document.getElementById('fReps').value.trim()||(sets+' sets');
   const note=document.getElementById('fNote').value.trim();
-  if(editIdx>=0){const ex=state.program[edDay].ex[editIdx]; ex.t=name; ex.r=reps; ex.s=sets; ex.note=note; ex.img=formImg;}
-  else{state.program[edDay].ex.push({id:uid(),t:name,r:reps,s:sets,note:note,img:formImg||'ohp'});}
+  const assist=document.getElementById('fAssist').checked;
+  if(editIdx>=0){const ex=state.program[edDay].ex[editIdx]; ex.t=name; ex.r=reps; ex.s=sets; ex.note=note; ex.img=formImg; ex.assist=assist;}
+  else{state.program[edDay].ex.push({id:uid(),t:name,r:reps,s:sets,note:note,img:formImg||'ohp',assist:assist});}
   save(); document.getElementById('exForm').classList.remove('show'); renderEditor();}
 function deleteCurrentEx(){if(editIdx<0)return; if(!confirm('Delete this exercise?'))return;
   const ex=state.program[edDay].ex[editIdx]; delete state.progress[ex.id];
@@ -571,11 +607,16 @@ function finishWorkout(){const d=state.program[curDay]; if(!d.ex.length){alert('
   const totSets=d.ex.reduce((a,x)=>a+prog(x).sets.length,0);
   if(!confirm('Log today’s "'+d.name+'" workout?\n\n'+doneSets+' of '+totSets+' sets checked. Checkmarks reset for next time — your weights & reps carry over.'))return;
   let dayVol=0,beat=0,pbs=[],shorts=[];
-  const exlog=d.ex.map(x=>{const p=prog(x);const vol=exVolume(p);const oldBest=p.best||0;dayVol+=vol;
+  const exlog=d.ex.map(x=>{const p=prog(x);const doneN=p.sets.filter(s=>s.done).length;
+    if(isAssist(x)){const top=assistTop(p,true);const oldB=assistBest(p);
+      if(top!==null){ if(oldB===null||top>oldB){beat++;pbs.push(x.t+' → '+fmt(top)+' kg'+(oldB!==null?' (+'+fmt(top-oldB)+')':''));p.abest=top;}
+        else if(top<oldB){shorts.push(x.t+' '+fmt(top-oldB)+' kg');} }
+      return {t:x.t,vol:null,assist:true,best:assistBest(p),done:doneN,total:p.sets.length,w:(top===null?0:top)};}
+    const vol=exVolume(p);const oldBest=p.best||0;dayVol+=vol;
     const topw=p.sets.reduce((a,s)=>Math.max(a,s.w||0),0);
     if(vol>0&&vol>oldBest){beat++;pbs.push(x.t+' +'+fmtInt(vol-oldBest));p.best=vol;}
     else if(vol>0&&oldBest>0){shorts.push(x.t+' −'+fmtInt(oldBest-vol));}
-    return {t:x.t,vol:vol,best:p.best||0,done:p.sets.filter(s=>s.done).length,total:p.sets.length,w:topw};});
+    return {t:x.t,vol:vol,best:p.best||0,done:doneN,total:p.sets.length,w:topw};});
   const entry={name:d.name,sub:d.sub||'',di:curDay,ts:Date.now(),vol:dayVol,ex:exlog};
   const k=todayStr(); if(!state.history)state.history={}; (state.history[k]=state.history[k]||[]).push(entry);
   d.ex.forEach(x=>{const p=prog(x);p.sets.forEach(s=>s.done=false);});
