@@ -68,6 +68,10 @@
     padding:7px 13px; border-radius:100px; font-size:13px; font-weight:600; max-width:210px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .chip.active{background:var(--accent); color:#fff;}
+  .segmented{display:flex; background:var(--fill2); border-radius:9px; padding:2px; margin:12px 0 0; gap:2px;}
+  .segmented button{flex:1; border:none; background:transparent; border-radius:7px; padding:7px 10px;
+    font-size:13px; font-weight:600; color:var(--txt); font-family:inherit; letter-spacing:-.01em;}
+  .segmented button.on{background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.12);}
   .chartwrap{position:relative; margin-top:4px; touch-action:pan-y;}
   .chartwrap svg{width:100%;}
   .charttip{position:absolute; top:0; pointer-events:none; background:rgba(250,250,252,.95);
@@ -321,6 +325,7 @@
       </div>
       <div class="chartval" id="chartVal"></div>
     </div>
+    <div class="segmented" id="chartMode"></div>
     <div class="chips" id="exChips"></div>
     <div class="chartwrap" id="chartWrap"></div>
   </div>
@@ -987,7 +992,13 @@ function renderSelect(){const el=document.getElementById('dayCards'); if(!el)ret
     el.appendChild(b);});}
 
 /* ---------- HOME: stats + progressive-overload chart ---------- */
-function renderHome(){renderStats(); renderChips(); renderChart();}
+function renderHome(){renderStats(); renderMode(); renderChips(); renderChart();}
+/* chart mode: 'split' = whole training-day volume over time · 'exercise' = one exercise's overload */
+function chartMode(){return state.chartMode==='exercise'?'exercise':'split';}
+function setChartMode(m){state.chartMode=m; save(); renderMode(); renderChips(); renderChart();}
+function renderMode(){const el=document.getElementById('chartMode'); if(!el)return; const m=chartMode(); el.innerHTML='';
+  [['split','Splits'],['exercise','Exercises']].forEach(pair=>{const b=document.createElement('button');
+    b.className=(m===pair[0]?'on':''); b.textContent=pair[1]; b.onclick=()=>setChartMode(pair[0]); el.appendChild(b);});}
 function renderStats(){const el=document.getElementById('statRow'); if(!el)return;
   const logs=allLogs(); const t=new Date();
   const wk=new Date(t.getFullYear(),t.getMonth(),t.getDate()-6);
@@ -1013,11 +1024,23 @@ function curSel(){const list=chartExs(); if(!list.length)return null;
   if(state.chartSel&&list.some(x=>x.t===state.chartSel))return state.chartSel;
   let best=null,bn=-1; list.forEach(x=>{const n=histCount(x.t); if(n>bn){bn=n; best=x.t;}});
   return best||list[0].t;}
-function renderChips(){const el=document.getElementById('exChips'); if(!el)return;
-  const sel=curSel(); el.innerHTML='';
-  chartExs().forEach(x=>{const c=document.createElement('button'); c.className='chip'+(x.t===sel?' active':'');
-    c.textContent=x.t; c.onclick=()=>{state.chartSel=x.t; save(); renderChips(); renderChart();};
-    el.appendChild(c);});
+/* ---- splits (per training-day) ---- */
+function curSplit(){const n=state.program.length; if(!n)return null;
+  let s=state.chartSplit;
+  if(typeof s!=='number'||s<0||s>=n){const logs=allLogs(); s=logs.length?logs[logs.length-1].en.di:0; if(s>=n)s=0;}
+  return s;}
+function splitSeries(di){const pts=[];
+  allLogs().forEach(l=>{if(l.en.di!==di)return; if((l.en.vol||0)<=0)return; pts.push({ds:l.ds,v:l.en.vol,type:'vol'});});
+  return pts;}
+function renderChips(){const el=document.getElementById('exChips'); if(!el)return; el.innerHTML='';
+  if(chartMode()==='split'){const sel=curSplit();
+    state.program.forEach((d,i)=>{const c=document.createElement('button'); c.className='chip'+(i===sel?' active':'');
+      c.textContent='Day '+(i+1)+' · '+d.name; c.onclick=()=>{state.chartSplit=i; save(); renderChips(); renderChart();};
+      el.appendChild(c);});}
+  else{const sel=curSel();
+    chartExs().forEach(x=>{const c=document.createElement('button'); c.className='chip'+(x.t===sel?' active':'');
+      c.textContent=x.t; c.onclick=()=>{state.chartSel=x.t; save(); renderChips(); renderChart();};
+      el.appendChild(c);});}
   const a=el.querySelector('.chip.active'); if(a&&a.scrollIntoView)a.scrollIntoView({inline:'center',block:'nearest'});}
 function exByName(n){for(const d of state.program)for(const x of d.ex)if(x.t===n)return x; return null;}
 function exSeries(name){const pts=[];
@@ -1035,27 +1058,34 @@ function niceTicks(lo,hi,n){const span=(hi-lo)||1; let step=Math.pow(10,Math.flo
   const t=[]; for(let v=Math.ceil(lo/step)*step; v<=hi+1e-9; v+=step)t.push(Math.round(v*1000)/1000);
   return t.length?t:[lo,hi];}
 let CHART=null;
-function renderChart(){const wrap=document.getElementById('chartWrap'); if(!wrap)return;
-  const tEl=document.getElementById('chartTitle'), vEl=document.getElementById('chartVal');
-  const name=curSel(); CHART=null;
-  if(!name){wrap.innerHTML='<div class="chartempty">Add exercises to your program to see progress here.</div>'; tEl.textContent='—'; vEl.innerHTML=''; return;}
-  tEl.textContent=name;
-  const pts=exSeries(name);
-  const xx=exByName(name);
+function chartSpec(){
+  if(chartMode()==='split'){const di=curSplit(); if(di===null)return null;
+    const d=state.program[di];
+    return {title:'Day '+(di+1)+' · '+d.name, pts:splitSeries(di), type:'vol', unit:'kg·reps',
+      empty1:'One session logged for this split. Log it once more to see the trend.',
+      empty0:'No sessions logged for this split yet.<br>Finish this workout and it shows up here.'};}
+  const name=curSel(); if(!name)return null;
+  const xx=exByName(name); const pts=exSeries(name);
   const type=pts.length?pts[pts.length-1].type:(isRun(xx)?'run':(isAssist(xx)?'assist':'vol'));
   const unit=type==='run'?'km':(type==='assist'?'kg':'kg·reps');
+  return {title:name, pts:pts, type:type, unit:unit,
+    empty1:'One session logged. Finish one more and your trend line appears.',
+    empty0:'No sessions logged yet.<br>Finish a workout and your progress shows up here.'};}
+function renderChart(){const wrap=document.getElementById('chartWrap'); if(!wrap)return;
+  const tEl=document.getElementById('chartTitle'), vEl=document.getElementById('chartVal');
+  CHART=null;
+  const spec=chartSpec();
+  if(!spec){wrap.innerHTML='<div class="chartempty">Add exercises to your program to see progress here.</div>'; tEl.textContent='—'; vEl.innerHTML=''; return;}
+  tEl.textContent=spec.title;
+  const pts=spec.pts, type=spec.type, unit=spec.unit;
   if(pts.length){const last=pts[pts.length-1].v;
     let d='<span>first log</span>';
     if(pts.length>1){const df=last-pts[pts.length-2].v;
-      const cls=df===0?'':((type==='assist'?df>0:df>0)?'up':(df<0?'dn':''));
+      const cls=df===0?'':(df>0?'up':'dn');   /* up = higher volume / less assist = good */
       d='<span class="'+cls+'">'+(df>=0?'+':'−')+fmtCh(Math.abs(df),type)+' vs prior</span>';}
     vEl.innerHTML='<b>'+fmtCh(last,type)+' '+unit+'</b>'+d;}
   else vEl.innerHTML='';
-  if(pts.length<2){
-    wrap.innerHTML='<div class="chartempty">'+(pts.length===1?
-      'One session logged. Finish one more and your trend line appears.':
-      'No sessions logged yet.<br>Finish a workout and your progress shows up here.')+'</div>';
-    return;}
+  if(pts.length<2){wrap.innerHTML='<div class="chartempty">'+(pts.length===1?spec.empty1:spec.empty0)+'</div>'; return;}
   drawChart(wrap,pts,type,unit);}
 function drawChart(wrap,pts,type,unit){
   const W=Math.max(240,wrap.clientWidth||300), H=224;
